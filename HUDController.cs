@@ -70,7 +70,6 @@ public class HUDController : EventTrigger
             direction = new Vector2(xer, yer);
         }
     }
-
     public override void OnPointerUp(PointerEventData data)
     {
         down = false;
