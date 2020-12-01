@@ -4,15 +4,29 @@ using UnityEngine;
 using UnityEngine.UI;
 public class MainController : MonoBehaviour
 {
+    public Lenscrafter crafter;
+    [SerializeField] GameObject[] pieces;
+    [SerializeField] Button[] piecePlacer;
+    [SerializeField] float[] yPieceDisplacemnent;
+    public GameObject[] canvases;
+    [SerializeField] GameObject mainCanvas;
+    [SerializeField] GameObject onPhysical;
     [SerializeField] Camera camera;
+    [SerializeField] GameObject baseLayer;
+    [SerializeField] GameObject axisLayer;
+    [SerializeField] GameObject generalExperimentContainer;
+    public Transform centralBase;
+    [SerializeField] int sideBaseLength;
+    [SerializeField] float addLength;
+    [SerializeField] float specialAdd;
+    [SerializeField] float baseW;
+    [SerializeField] float baseA;
+    [SerializeField] float timerIntergral;
+    [SerializeField] float waveSpeed;
     [SerializeField] GameObject wheelButton;
-    [SerializeField] GameObject sampleCharge;
-    [SerializeField] GameObject sampleFieldArrow;
-    [SerializeField] GameObject buildObject;
     [SerializeField] float cameraMult;
     [SerializeField] float cameraMax = 85;
     [SerializeField] float cameraMin = 5;
-    [SerializeField] float numbOfCharge = 10;
     [SerializeField] GameObject pivitCenter;
     [SerializeField] Button up;
     [SerializeField] Button down;
@@ -21,14 +35,8 @@ public class MainController : MonoBehaviour
     [SerializeField] Button zoomIn;
     [SerializeField] Button zoomOut;
     [SerializeField] Button reset;
-    [SerializeField] Button newChargeButton;
-    [SerializeField] Button deleteCurrentCharge;
-    [SerializeField] Button compileFieldsButton;
-    [SerializeField] Button hideShowFields;
-    [SerializeField] Button hideShowContours;
-    [SerializeField] Button helpButton;
-    [SerializeField] Button helpBackButton;
-    [SerializeField] Button arrowBackButton;
+    [SerializeField] Button pauseButton;
+    [SerializeField] Button clearButton;
     [SerializeField] float moveFactorCamera;
     [SerializeField] float minYMovement;
     [SerializeField] float maxYMovement;
@@ -36,71 +44,71 @@ public class MainController : MonoBehaviour
     [SerializeField] float zoomFactor;
     [SerializeField] float maxZoom;
     [SerializeField] float minZoom;
-    [SerializeField] InputField nameField;
-    [SerializeField] InputField xposField;
-    [SerializeField] InputField yposField;
-    [SerializeField] InputField zposField;
-    [SerializeField] InputField chargeField;
-    [SerializeField] float lowestExtreme;
-    [SerializeField] float highestExtreme;
-    [SerializeField] float extremeCountingInterval;
-    [SerializeField] float strengthScalar = 1f;
-    [SerializeField] float maxArrowSize = 25;
-    [SerializeField] float contourScalar = 1f;
-    [SerializeField] float radialInterval;
-    [SerializeField] int numberContourLayers = 4;
-    [SerializeField] float[] angleInterval;
-    [SerializeField] int maxRDist = 6;
-    [SerializeField] bool stengthSquared = false;
-    [SerializeField] Transform generalCanvas;
-    [SerializeField] Transform helpCanvas;
-    [SerializeField] Transform arrowCanvas;
-    [SerializeField] float[] layers;
+    [SerializeField] float surfaceVerticalOffset;
+    [SerializeField] float surfaceHorizontalOffset;
+    [SerializeField] float baseCanvasWidth;
+    [SerializeField] float baseCanvasHeight;
+    public float circleAmp = 5;
+    [SerializeField] Button switchModeBut;
+    [SerializeField] Button constructBut;
+    [SerializeField] Button backToTable;
+    [SerializeField] Button surfaceSelector;
+    [SerializeField] Text switchModeText; 
+    public GameObject physicalObjects;
+    [SerializeField] GameObject geometricObjects;
+    [SerializeField] Transform geometricMainCanvas;
+    [SerializeField] Transform helpActiveCanvas;
+    [SerializeField] Button helpActiveButton;
+    [SerializeField] Button backHelpButton;
     HUDController hud;
-
-    public List<Charge> charges;
-    public List<GameObject> fieldArrows;
-    public List<GameObject> contourPoints;
-    public bool arrowCanvasOn = false;
-
+    public bool placer = false;
+    public bool emit = true;
+    public int mode = 0;
+    public int surfaceSecondCount = 7;
+    public refractingSurface[,] surfaces;
+    public Transform[] surfaceCanvas = new Transform[3];
+    public RectTransform[] surfaceCanvasStartingPosition = new RectTransform[3];
+    public GameObject[,] surfaceButtons;
+    [SerializeField] Button[] deleteType = new Button[3];
+    public int[] surfaceCounter = new int[3];
+    public int[] currentPieceType = new int[3] {-1, -1, -1};
+    public float dialationSize = 0.1f; 
+    int smallTimer = 0;
+    int placeIndex = 0;
+    int currentIndex = 0;
     float dist;
     float savedDist;
     Vector3 savedStart;
     Quaternion savedRotation;
-    bool fieldsOn = false;
-    bool arrowsOn = true;
-    bool contourOn = true;
-    public int currentCharge = -1;
-    public int currentArrow = -1;
+    GameObject[] optics = new GameObject[100];
+    List<GameObject> piecesHolder = new List<GameObject>();
     // Start is called before the first frame update
     void Start()
     {
-        arrowBackButton.onClick.AddListener(arrowBackFunction);
-        helpBackButton.onClick.AddListener(delegate
-        {
-            helpGeneral(true);
-        });
-        helpButton.onClick.AddListener(delegate
-        {
-            helpGeneral(false);
-        });
-        hideShowFields.onClick.AddListener(delegate {
-            hideShow(fieldArrows, arrowsOn);
-            arrowsOn = !arrowsOn;
-	    });
-        hideShowContours.onClick.AddListener(delegate
-        {
-            hideShow(contourPoints, contourOn);
-            contourOn = !contourOn;
-        });
-        compileFieldsButton.onClick.AddListener(produceFields);
-        deleteCurrentCharge.onClick.AddListener(deleteCharge);
-        newChargeButton.onClick.AddListener(newCharge);
+        onPhysical.gameObject.SetActive(false);
+        onPhysical.gameObject.SetActive(true);
+        clearButton.onClick.AddListener(clearFunc);
+        helpActiveButton.onClick.AddListener(delegate { helpActiveCanvas.gameObject.SetActive(true); mainCanvas.gameObject.SetActive(false); });
+        backHelpButton.onClick.AddListener(delegate { helpActiveCanvas.gameObject.SetActive(false); mainCanvas.gameObject.SetActive(true); });
+        surfaces = new refractingSurface[3,surfaceSecondCount];
+        surfaceButtons = new GameObject[3,surfaceSecondCount];
+        deleteType[0].onClick.AddListener(delegate{deletePieceType(0);});
+        deleteType[1].onClick.AddListener(delegate{deletePieceType(1);});
+        deleteType[2].onClick.AddListener(delegate{deletePieceType(2);});
         dist = Vector3.Distance(pivitCenter.transform.position, camera.transform.position);
         savedDist = dist;
         savedStart = camera.transform.position;
         savedRotation = camera.transform.rotation;
         hud = wheelButton.GetComponent<HUDController>();
+        piecePlacer[0].onClick.AddListener(delegate { placement(0); });
+        piecePlacer[1].onClick.AddListener(delegate { placement(1); });
+        piecePlacer[2].onClick.AddListener(delegate { placement(2); });
+        piecePlacer[3].onClick.AddListener(delegate { placement(3); });
+        piecePlacer[4].onClick.AddListener(delegate { placement(4); });
+        piecePlacer[5].onClick.AddListener(delegate { placement(5); });
+        piecePlacer[6].onClick.AddListener(delegate { placement(6); });
+        piecePlacer[7].onClick.AddListener(delegate { placement(7); });
+        pauseButton.onClick.AddListener(pauseFunc);
         up.onClick.AddListener(upFunc);
         down.onClick.AddListener(downFunc);
         right.onClick.AddListener(rightFunc);
@@ -108,111 +116,66 @@ public class MainController : MonoBehaviour
         reset.onClick.AddListener(resetFunc);
         zoomIn.onClick.AddListener(zoomInFunc);
         zoomOut.onClick.AddListener(zoomOutFunc);
-    }
-    List<int> triangleAdd(List<int> existing, List<int> previous, List<int> current, List<int> future, List<PointParts> partPoint, List<Vector3> verts)
-    {
-        List<int> triangle = existing;
-        if (current.Count > 0)
+        switchModeBut.onClick.AddListener(switchMode);
+        backToTable.onClick.AddListener(delegate{constructing(true);});
+        constructBut.onClick.AddListener(delegate{constructing(false);});
+        for (float width = -1 * sideBaseLength; width <= sideBaseLength; width+= addLength)
         {
-            List<int> temp = new List<int>();
-            for (int j = 0; j < current.Count; j++)
-            {
-                temp.Add(current[j]);
-            }
-            int currentIndex = 0;
-            int fun = 0;
-            while (temp.Count > 0 && fun < current.Count + 1)
-            {
-                int closeIndex = 0;
-                int removeIndex = 0;
-                float smallerDist = 1000;
-                for (int k = 0; k < temp.Count; k++)
-                {
-                    if (temp[k] != current[currentIndex])
-                    {
-                        if (Vector3.Distance(verts[current[currentIndex]], verts[temp[k]]) < smallerDist)
-                        {
-                            closeIndex = k;
-                            smallerDist = Vector3.Distance(verts[current[currentIndex]], verts[temp[k]]);
-                        }
-                    }
-                    else
-                    {
-                        removeIndex = k;
-                    }
-                }
-                if (smallerDist < 900)
-                {
-                    if (previous.Count > 0)
-                    {
-                        triangle.Add(current[currentIndex]);
-                        triangle.Add(temp[closeIndex]);
-                        float smallDist = 1000;
-                        int smallIndex = 0;
-                        for (int s = 0; s < previous.Count; s++)
-                        {
-                            Vector3 average = (verts[current[currentIndex]] + verts[temp[closeIndex]]) / 2;
-                            if (Vector3.Distance(average, verts[previous[s]]) < smallDist && partPoint[previous[s]].backCombine != average)
-                            {
-                                smallDist = Vector3.Distance(average, verts[previous[s]]);
-                                smallIndex = s;
-                                partPoint[previous[s]].backCombine = average;
-                            }
-                        }
-                        triangle.Add(previous[smallIndex]);
-                        triangle.Add(previous[smallIndex]);
-                        triangle.Add(temp[closeIndex]);
-                        triangle.Add(current[currentIndex]);
-                    }
-                    if (future.Count > 0)
-                    {
-                        triangle.Add(current[currentIndex]);
-                        triangle.Add(temp[closeIndex]);
-                        float smallDist2 = 1000;
-                        int smallIndex2 = 0;
-                        for (int s = future.Count - 1; s >= 0; s--)
-                        {
-                            Vector3 average = (verts[current[currentIndex]] + verts[temp[closeIndex]]) / 2;
-                            if (Vector3.Distance(average, verts[future[s]]) < smallDist2 && partPoint[future[s]].forwardCombine != average)
-                            {
-                                smallDist2 = Vector3.Distance(average, verts[future[s]]);
-                                smallIndex2 = s;
-                                partPoint[future[s]].forwardCombine = average;
-                            }
-                        }
-                        triangle.Add(future[smallIndex2]);
-                        triangle.Add(future[smallIndex2]);
-                        triangle.Add(temp[closeIndex]);
-                        triangle.Add(current[currentIndex]);
-                    }
-                }
-                int midde = temp[closeIndex];
-                temp.RemoveAt(removeIndex);
-                if (fun == 1)
-                {
-                    temp.Add(current[0]);
-                }
-                for (int j = 0; j < current.Count; j++)
-                {
-                    if (current[j] == midde)
-                    {
-                        currentIndex = j;
-                    }
-                }
-                fun++;
+            for (float length = -1 * sideBaseLength; length <= sideBaseLength; length+= addLength) {
+                GameObject obj = Instantiate(baseLayer);
+                obj.transform.position = centralBase.position + new Vector3(centralBase.position.x + width, centralBase.position.y, centralBase.position.z + length);
+                obj.transform.SetParent(physicalObjects.transform);
+                obj.SetActive(true);
             }
         }
-        return triangle;
-    }
-    Vector3 averageList(List<int> range, List<Vector3> verts)
-    {
-        Vector3 sum = new Vector3(0, 0, 0);
-        for (int i = 0; i < range.Count; i++)
+        for (float width = -1 * sideBaseLength; width <= sideBaseLength; width += specialAdd)
         {
-            sum += verts[range[i]];
+            if (width != 0)
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    float[] offsets = { 0f, 0f, 0f };
+                    offsets[i] = width;
+                    GameObject obj = Instantiate(axisLayer);
+                    obj.transform.position = centralBase.position + new Vector3(centralBase.position.x + offsets[0], centralBase.position.y + offsets[1], centralBase.position.z + offsets[2]);
+                    obj.transform.SetParent(geometricObjects.transform);
+                    obj.SetActive(true);
+                }
+            }
         }
-        sum /= range.Count;
-        return sum;
+    }
+    void placement(int index)
+    {
+        placer = true;
+        placeIndex = index;
+        smallTimer = 0;
+    }
+    void place()
+    {
+        if (placer)
+        {
+            RaycastHit hit;
+            Ray ray = camera.ScreenPointToRay(Input.mousePosition);
+            if (Physics.Raycast(ray, out hit) && Input.GetMouseButtonUp(0) && smallTimer >= 1)
+            {
+                GameObject obj = Instantiate(pieces[placeIndex]);
+                piecesHolder.Add(obj);
+                obj.transform.SetParent(generalExperimentContainer.transform);
+                PieceController idsetting = obj.GetComponent<PieceController>();
+                idsetting.id = currentIndex;
+                idsetting.baseWavelength = baseW;
+                idsetting.baseAmplitude = baseA;
+                idsetting.timerInt = timerIntergral;
+                idsetting.waveSpeed = waveSpeed;
+                optics[currentIndex] = obj;
+                currentIndex++;
+                obj.transform.position = hit.transform.position + new Vector3(0, yPieceDisplacemnent[placeIndex], 0);
+                obj.SetActive(true);
+                placer = false;
+                placeIndex = 0;
+            }
+            smallTimer++;
+        }
     }
     void cameraControl() {
         float deltaX = hud.direction.x - hud.revised.x;
@@ -254,6 +217,15 @@ public class MainController : MonoBehaviour
         camera.transform.position = new Vector3(xpos + pivitCenter.transform.position.x, ypos + pivitCenter.transform.position.y, zpos + pivitCenter.transform.position.z);
         camera.transform.rotation = Quaternion.Euler(camera.transform.rotation.eulerAngles.x, camera.transform.rotation.eulerAngles.y, 0f);
     }
+    void pauseFunc() {
+        if (emit)
+        {
+            emit = false;
+        }
+        else {
+            emit = true;
+        }
+    }
     void upFunc() {
         if (pivitCenter.transform.position.y + moveFactorCamera < maxYMovement)
         {
@@ -283,6 +255,12 @@ public class MainController : MonoBehaviour
             pivitCenter.transform.position = new Vector3(pivitCenter.transform.position.x - xpos, pivitCenter.transform.position.y, pivitCenter.transform.position.z - zpos);
         }
     }
+    void clearFunc () {
+        for (int i = 0; i < piecesHolder.Count; i++) {
+            Destroy(piecesHolder[i]);
+        }
+        piecesHolder.Clear();
+    }
     void zoomInFunc() {
         if (dist - zoomFactor > minZoom)
         {
@@ -301,234 +279,100 @@ public class MainController : MonoBehaviour
         dist = savedDist;
         pivitCenter.transform.position = new Vector3(0, 0, 0);
     }
+    void switchMode() {
+        if (mode == 0)
+        {
+            mode = 1;
+            switchModeText.text = "Current Mode: Geometric";
+        }
+        else {
+            mode = 0;
+            switchModeText.text = "Current Mode: Physical";
+        }
+    }
+    void constructing(bool direction) {
+        if (!direction) {
+            for (int i = 0; i < canvases.Length; i++) {
+                canvases[i].SetActive(direction);
+            } 
+        }
+        mainCanvas.SetActive(direction);
+        if (helpActiveCanvas.gameObject.active) {
+            helpActiveCanvas.gameObject.SetActive(direction);
+        }
+        physicalObjects.SetActive(direction);
+        geometricObjects.SetActive(!direction);
+        geometricMainCanvas.gameObject.SetActive(!direction);
+        onPhysical.SetActive(direction);
+        emit = true;
+    }
+    // Update is called once per frame
     void Update()
     {
         cameraControl();
-        if (currentCharge != -1)
-        {
-            float.TryParse(xposField.text, out charges[currentCharge].xpos);
-            float.TryParse(yposField.text, out charges[currentCharge].ypos);
-            float.TryParse(zposField.text, out charges[currentCharge].zpos);
-            float.TryParse(chargeField.text, out charges[currentCharge].charge);
-            charges[currentCharge].name = nameField.text;
-        }
+        place();
     }
-    void setFieldsNew (Charge chargeScript)
-    {
-        chargeField.text = chargeScript.charge.ToString();
-        nameField.text = chargeScript.name.ToString();
-        xposField.text = chargeScript.xpos.ToString();
-        yposField.text = chargeScript.ypos.ToString();
-        zposField.text = chargeScript.zpos.ToString();
-    }
-    void newCharge ()
-    {
-        GameObject obj = Instantiate(sampleCharge);
-        Charge chargeScript = obj.GetComponent<Charge>();
-        chargeScript.name = "charge " + (charges.Count + 1).ToString();
-        chargeScript.camera = camera;
-        chargeScript.mainner = this;
-        setFieldsNew(chargeScript);
-        currentCharge = charges.Count;
-        charges.Add(chargeScript);
-        obj.SetActive(true);
-        generalCanvas.gameObject.SetActive(true);
-        arrowCanvas.gameObject.SetActive(false);
-    }
-    public void changeCharge ()
-    {
-        int onCharge = -1;
-        generalCanvas.gameObject.SetActive(true);
-        arrowCanvas.gameObject.SetActive(false);
-        for(int i = 0; i < charges.Count; i++)
-        {
-            if (charges[i].touched)
-            {
-                onCharge = i;
-                charges[i].touched = false;
+    public void surfaceCanvasUpdate (int surfaceType) {
+        for (int i = 0; i < surfaceSecondCount; i++) {
+            if (surfaceButtons[surfaceType, i] != null) {
+                GameObject obj3 = Instantiate(crafter.surfaceTestButton);
+                obj3.transform.SetParent(surfaceCanvas[surfaceType]);
+                obj3.SetActive(true);
+                int constant = i;
+                obj3.GetComponent<Button>().onClick.AddListener(delegate{currentPieceType[surfaceType] = constant;});
+                obj3.GetComponentInChildren<Text>().text = surfaceButtons[surfaceType, i].GetComponentInChildren<Text>().text;
+                Destroy(surfaceButtons[surfaceType, i]);
+                surfaceButtons[surfaceType, i] =  obj3;
+                RectTransform recter = surfaceButtons[surfaceType, i].GetComponent<RectTransform>();
+                RectTransform genRect = surfaceCanvas[surfaceType].GetComponent<RectTransform>();
+                if (i > surfaceSecondCount / 2 -1) {
+                    recter.localPosition = new Vector3(surfaceCanvasStartingPosition[surfaceType].GetComponent<RectTransform>().localPosition.x + surfaceHorizontalOffset, -1 * (i - 2) * surfaceVerticalOffset + surfaceCanvasStartingPosition[surfaceType].GetComponent<RectTransform>().localPosition.y);
+                } else {
+                    recter.localPosition = new Vector3(surfaceCanvasStartingPosition[surfaceType].GetComponent<RectTransform>().localPosition.x, -1 * i * surfaceVerticalOffset + surfaceCanvasStartingPosition[surfaceType].GetComponent<RectTransform>().localPosition.y);
+                }
+                Vector3 storage = recter.localPosition;
+                recter.anchorMax = new Vector2(0.5f, 0.5f);
+                recter.anchorMin = new Vector2(0.5f, 0.5f);
+                recter.localPosition = storage;
+                bool tempBool = false;
+                if (surfaceCanvas[surfaceType].gameObject.active) {
+                    tempBool = true;
+                }
+                surfaceCanvas[surfaceType].gameObject.SetActive(true);
+                recter.localScale = new Vector3(genRect.rect.width / baseCanvasWidth, genRect.rect.height / baseCanvasHeight, 1);
+                recter.anchorMin = new Vector2((recter.localPosition.x - recter.rect.width / 2 + genRect.rect.width / 2) / genRect.rect.width, (recter.localPosition.y - recter.rect.height / 2 + genRect.rect.height / 2) / genRect.rect.height);
+                recter.anchorMax = new Vector2((recter.localPosition.x + recter.rect.width / 2 + genRect.rect.width / 2) / genRect.rect.width, (recter.localPosition.y + recter.rect.height / 2 + genRect.rect.height / 2) / genRect.rect.height);
+                if (!tempBool) {
+                    surfaceCanvas[surfaceType].gameObject.SetActive(false);
+                }
+                recter.offsetMin = Vector2.zero;
+                recter.offsetMax = Vector2.zero;
             }
         }
-        currentCharge = onCharge;
-        setFieldsNew(charges[onCharge]);
     }
-    void deleteCharge ()
-    {
-        if (currentCharge != -1)
-        {
-            generalCanvas.gameObject.SetActive(true);
-            arrowCanvas.gameObject.SetActive(false);
-            charges[currentCharge].gameObject.SetActive(false);
-            charges.RemoveAt(currentCharge);
-            currentCharge = -1;
-        }
-    }
-    PointParts pointer(int index, Vector3 coordinates)
-    {
-        PointParts tempPoint = new PointParts();
-        tempPoint.index = index;
-        tempPoint.position = coordinates;
-        tempPoint.positionArray = new float[] { coordinates.x, coordinates.y, coordinates.z };
-        return tempPoint;
-    }
-    void produceFields()
-    {
-        if (!fieldsOn)
-        {
-            fieldsOn = true;
-            //This varible is used but where it is used is commented out
-            int countering = 0;
-            PointParts[] contourLayers = new PointParts[numberContourLayers];
-            float[] contourLayerLimits = layers;
-            //field arrows
-            for (float x = lowestExtreme; x <= highestExtreme; x += extremeCountingInterval)
-            {
-                PointParts[] queues = new PointParts[contourLayers.Length];
-                for (int k = 0; k < queues.Length; k++)
-                {
-                    queues[k] = new PointParts();
-                }
-                for (float y = lowestExtreme; y <= highestExtreme; y += extremeCountingInterval)
-                {
-                    for (float z = lowestExtreme; z <= highestExtreme; z += extremeCountingInterval)
-                    {
-                        float xMag = 0;
-                        float yMag = 0;
-                        float zMag = 0;
-                        float contour = 0;
-                        for (int i = 0; i < charges.Count; i++)
-                        {
-                            if (!(charges[i].gameObject.transform.position.x == x && charges[i].gameObject.transform.position.y == y && charges[i].gameObject.transform.position.z == z))
-                            {
-                                float strength = 0;
-                                if (stengthSquared)
-                                {
-                                    strength = Mathf.Abs(charges[i].charge) / Mathf.Pow(Vector3.Distance(charges[i].gameObject.transform.position, new Vector3(x, y, z)), 2);
-                                }
-                                else
-                                {
-                                    strength = Mathf.Abs(charges[i].charge) / Vector3.Distance(charges[i].gameObject.transform.position, new Vector3(x, y, z));
-                                }
-                                contour += charges[i].charge / Vector3.Distance(charges[i].gameObject.transform.position, new Vector3(x, y, z));
-                                float phi1 = Mathf.Asin((charges[i].gameObject.transform.position.y - y) / Vector3.Distance(charges[i].gameObject.transform.position, new Vector3(x, y, z)));
-                                if (z < charges[i].gameObject.transform.position.z)
-                                {
-                                    phi1 += Mathf.PI;
-                                }
-                                if (charges[i].charge < 0)
-                                {
-                                    phi1 += Mathf.PI;
-                                    phi1 *= -1;
-                                }
-                                float theta1 = 0;
-                                if (charges[i].gameObject.transform.position.z == z)
-                                {
-                                    if (charges[i].gameObject.transform.position.x <= x)
-                                    {
-                                        theta1 = -Mathf.PI / 2;
-                                    }
-                                    else
-                                    {
-                                        theta1 = Mathf.PI / 2;
-                                    }
-                                    phi1 += Mathf.PI;
-                                    phi1 *= -1;
-                                }
-                                else
-                                {
-                                    theta1 = Mathf.Atan((charges[i].gameObject.transform.position.x - x) / (charges[i].gameObject.transform.position.z - z));
-                                }
-                                xMag += Mathf.Cos(phi1) * strength * Mathf.Sin(theta1);
-                                zMag += Mathf.Cos(phi1) * strength * Mathf.Cos(theta1);
-                                if (charges[i].gameObject.transform.position.x == x && charges[i].gameObject.transform.position.z == z)
-                                {
-                                    if (charges[i].charge < 0)
-                                    {
-                                        yMag += -1 * Mathf.Abs(Mathf.Sin(phi1) * strength);
-                                    }
-                                    else
-                                    {
-                                        yMag += Mathf.Abs(Mathf.Sin(phi1) * strength);
-                                    }
-                                }
-                                else
-                                {
-                                    yMag += Mathf.Sin(phi1) * strength;
-                                }
-                            }
-                        }
-
-                        if (!(xMag == 0 && yMag == 0 && zMag == 0))
-                        {
-
-                            GameObject obj = Instantiate(sampleFieldArrow);
-                            FieldArrowControl arrow = obj.GetComponent<FieldArrowControl>();
-                            obj.transform.position = new Vector3(x, y, z);
-                            float phi = Mathf.Asin(yMag / Mathf.Sqrt(Mathf.Pow(xMag, 2) + Mathf.Pow(yMag, 2) + Mathf.Pow(zMag, 2))) * Mathf.Rad2Deg;
-                            if (zMag <= 0)
-                            {
-                                phi += 180;
-                            }
-                            float theta = Mathf.Atan(xMag / zMag) * Mathf.Rad2Deg;
-                            arrow.contourStrength = contour;
-                            arrow.phi = phi;
-                            arrow.theta = theta;
-                            arrow.arrowStrength = Mathf.Sqrt(Mathf.Pow(xMag, 2) + Mathf.Pow(yMag, 2) + Mathf.Pow(zMag, 2));
-                            arrow.arrowIndex = countering;
-                            countering++;
-                            if (Mathf.Abs(zMag) < 0.0001 && Mathf.Abs(xMag) < 0.0001)
-                            {
-                                //phi *= -1;
-                            }
-                            obj.transform.rotation = Quaternion.Euler(phi, theta, 0f);
-                            float localScaleAdd = Mathf.Sqrt(Mathf.Pow(xMag, 2) + Mathf.Pow(yMag, 2) + Mathf.Pow(zMag, 2)) / strengthScalar;
-                            if (localScaleAdd > maxArrowSize)
-                            {
-                                localScaleAdd = maxArrowSize;
-                            }
-                            obj.transform.localScale = new Vector3(obj.transform.localScale.x, obj.transform.localScale.y, localScaleAdd);
-                            obj.SetActive(true);
-                            fieldArrows.Add(obj);
+    void deletePieceType (int type) {
+        if (currentPieceType[type] >= 0) {
+            Destroy(surfaceButtons[type, currentPieceType[type]]);
+            surfaceButtons[type, currentPieceType[type]] = null;
+            surfaces[type, currentPieceType[type]] = null;
+            for (int i = currentPieceType[type]; i < surfaceSecondCount; i++) {
+                if (i + 1 < surfaceSecondCount) {
+                    GameObject temp = surfaceButtons[type, i+1];
+                    surfaceButtons[type, i + 1] = surfaceButtons[type, i];
+                    surfaceButtons[type, i] = temp;
+                    refractingSurface tempSurf = surfaces[type, i+1];
+                    surfaces[type, i + 1] = surfaces[type, i];
+                    surfaces[type, i] = tempSurf;
+                    for (int j = 0; j < 2; j++) {
+                        if (surfaces[type, i + j] != null) {
+                            surfaces[type, i + j].index = i + j;
                         }
                     }
                 }
             }
+            currentPieceType[type] = -1;
+            surfaceCounter[type]--;
+            surfaceCanvasUpdate(type);
         }
-        else
-        {
-            fieldsOn = false;
-            for (int i = 0; i < fieldArrows.Count; i++)
-            {
-                Destroy(fieldArrows[i]);
-            }
-            for (int i = 0; i < contourPoints.Count; i++)
-            {
-                Destroy(contourPoints[i]);
-            }
-            fieldArrows.Clear();
-            contourPoints.Clear();
-            arrowsOn = true;
-            contourOn = true;
-        }
-    }
-    void hideShow (List<GameObject> types, bool onOff)
-    {
-        if (fieldsOn)
-        {
-            for (int i = 0; i < types.Count; i++)
-            {
-                types[i].gameObject.SetActive(!onOff);
-            }
-        }
-    } 
-    void helpGeneral(bool onOff)
-    {
-        generalCanvas.gameObject.SetActive(onOff);
-        helpCanvas.gameObject.SetActive(!onOff);
-    }
-    void arrowBackFunction ()
-    {
-        arrowCanvas.gameObject.SetActive(false);
-        generalCanvas.gameObject.SetActive(true);
-        fieldArrows[currentArrow].gameObject.GetComponent<Renderer>().material = fieldArrows[currentArrow].gameObject.GetComponent<FieldArrowControl>().offMaterial;
     }
 }
